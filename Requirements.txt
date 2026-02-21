@@ -5,4 +5,6 @@ scikit-learn
 tensorflow
 yfinance
 streamlit
-
+nltk
+textblob
+newsapi-python

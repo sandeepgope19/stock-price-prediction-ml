@@ -1,38 +1,55 @@
 import streamlit as st
+import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.data_loader import load_stock_data
-from src.preprocessing import scale_data, create_sequences
-from tensorflow.keras.models import load_model
+from model import train_predict_model
+from sentiment import get_news_sentiment
 
-st.set_page_config(page_title="Stock Price Prediction", layout="wide")
+st.set_page_config(page_title="AI Stock Predictor", layout="wide")
 
-st.title("📈 Stock Price Prediction Using LSTM")
+st.title("🤖 AI-Powered Real-Time Stock Prediction System")
 
-symbol = st.text_input("Enter Stock Symbol:", "AAPL")
-start_date = st.date_input("Start Date", pd.to_datetime("2015-01-01"))
-end_date = st.date_input("End Date", pd.to_datetime("2025-01-01"))
+stock_dict = {
+    "Apple": "AAPL",
+    "Tesla": "TSLA",
+    "Google": "GOOGL",
+    "Amazon": "AMZN",
+    "Microsoft": "MSFT",
+    "Reliance": "RELIANCE.NS",
+    "TCS": "TCS.NS",
+    "Infosys": "INFY.NS"
+}
 
-if st.button("Predict"):
+company = st.selectbox("Select Company:", list(stock_dict.keys()))
+stock = stock_dict[company]
 
-    df = load_stock_data(symbol, start_date, end_date)
-    data = df[['Close']]
+start_date = st.date_input("Start Date", pd.to_datetime("2022-01-01"))
+end_date = st.date_input("End Date", pd.to_datetime("today"))
 
-    scaled, scaler = scale_data(data)
-    X, y = create_sequences(scaled, 60)
-    X = X.reshape(X.shape[0], X.shape[1], 1)
+if st.button("Analyze & Predict"):
+    data = yf.download(stock, start=start_date, end=end_date)
 
-    model = load_model("models/lstm_model.h5")
-    predictions = model.predict(X)
-    predictions = scaler.inverse_transform(predictions)
+    st.subheader("📊 Stock Data")
+    st.dataframe(data.tail())
 
-    valid = data.iloc[60:]
-    valid['Predicted'] = predictions
+    predicted_price = train_predict_model(data)
+    st.success(f"📌 Predicted Next Day Closing Price: {predicted_price:.2f}")
 
-    st.subheader("📊 Stock Price Prediction Graph")
+    st.subheader("📰 News Sentiment Analysis")
+    sentiment, headlines = get_news_sentiment(company)
 
-    fig, ax = plt.subplots(figsize=(12,6))
-    ax.plot(data['Close'], label="Actual Price")
-    ax.plot(valid['Predicted'], label="Predicted Price")
+    if sentiment > 0:
+        st.success(f"Positive Market Sentiment 😊  (Score: {sentiment:.2f})")
+    elif sentiment < 0:
+        st.error(f"Negative Market Sentiment 😟 (Score: {sentiment:.2f})")
+    else:
+        st.warning("Neutral Market Sentiment 😐")
+
+    for news in headlines[:5]:
+        st.write("•", news)
+
+    st.subheader("📈 Stock Trend")
+    fig, ax = plt.subplots()
+    ax.plot(data['Close'], label="Closing Price")
     ax.legend()
     st.pyplot(fig)
