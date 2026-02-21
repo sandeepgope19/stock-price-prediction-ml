@@ -78,3 +78,5 @@ python train.py
 cd ..
 3️⃣ Run Web Application
 streamlit run app.py
+
+
